@@ -9,6 +9,7 @@ This package is intended to work on the raspberry pi. Node must be installed pri
 To install **herbert/embed**:
 
 ```bash
+$ git clone https://github.com/joshpaulchan/herbert-embed.git
 $ npm install
 ```
 
