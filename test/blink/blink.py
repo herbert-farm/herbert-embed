@@ -4,10 +4,7 @@ import sys
 import time
 
 # import the library
-import RPi.GPIO as GPIO
-
-# Set the pinmode to Raspi-specified pinout
-GPIO.setMode(GPIO.BOARD)
+from gpiozero import LED
 
 
 if (sys.argv < 2):
@@ -17,21 +14,19 @@ pin = sys.argv[2]
 print("Using pin: " + pin)
 
 # Set pin up for output
-GPIO.setup(pin, GPIO.OUT)
+led = LED(pin)
 
 # main
 def main():
-
     while True:
-        GPIO.output(pin, GPIO.HIGH)
+        led.on()
         time.sleep(1)
-        GPIO.output(pin, GPIO.LOW)
+        led.off()
         time.sleep(1)
-
 
 # boilerplate
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        GPIO.cleanup()
+        exit()
