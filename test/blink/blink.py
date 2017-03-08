@@ -1,20 +1,18 @@
 
-
 import sys
 import time
 
 # import the library
 from gpiozero import LED
 
-
-if (sys.argv < 2):
+if (len(sys.argv) < 2):
     print("Usage: $ sudo blink.py <pin-number>")
-
-pin = sys.argv[2]
+    
+pin = sys.argv[1]
 print("Using pin: " + pin)
 
 # Set pin up for output
-led = LED(pin)
+led = LED(int(pin))
 
 # main
 def main():
