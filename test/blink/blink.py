@@ -1,4 +1,3 @@
-
 import sys
 import time
 
@@ -17,7 +16,7 @@ led = LED(int(pin))
 
 # main
 def main():
-    while True: 5
+    while True:
         led.on()
         time.sleep(1)
         led.off()
