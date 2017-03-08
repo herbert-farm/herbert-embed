@@ -7,7 +7,8 @@ from gpiozero import LED
 
 if (len(sys.argv) < 2):
     print("Usage: $ sudo blink.py <pin-number>")
-    
+    sys.exit(1)
+
 pin = sys.argv[1]
 print("Using pin: " + pin)
 
@@ -16,7 +17,7 @@ led = LED(int(pin))
 
 # main
 def main():
-    while True:
+    while True: 5
         led.on()
         time.sleep(1)
         led.off()
