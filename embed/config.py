@@ -3,7 +3,7 @@
 @desc   File for containing the program configuration
 """
 
-class Config(Config):
+class Config(object):
     """Global Config"""
     
     pass

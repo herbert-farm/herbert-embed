@@ -16,17 +16,13 @@ import threading
 import concurrent.futures
 import socket
 
-import sock
-
-# FIXME: relative imports
-from .. import utils
-from embed import config, utils
-from .. import config
+from . import sock
+from .. import utils, config
 
 ################################### GLOBALS ###################################
 
 # pins to use
-_PINS = filter(any, config.GPIOConfig.PINS.values())
+_PINS = filter(lambda v: v, config.GPIOConfig.PINS.values())
 
 # pin locks
 LOCKS = {n : threading.Semaphore(1) for n in _PINS}
@@ -126,7 +122,7 @@ class Server(object):
         self.socks = {}
         
         # create thread pool
-        self.workers = concurrent.futures.Executor(max_workers=self.num_workers)
+        self.workers = concurrent.futures.ThreadPoolExecutor(max_workers=self.num_workers)
     
     @utils.assert_to_false
     def valid_action(self, action):

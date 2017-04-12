@@ -7,8 +7,9 @@ The Client class exposes mutation high-level operations for readability. It seri
 @author Joshua Paul A. Chan (@joshpaulchan)
 """
 
-import sock
 import json
+
+from . import sock
 from .. import config
 
 HOST = config.NetworkConfig.HOST   # The remote host
@@ -91,13 +92,13 @@ def main():
         # serialize cmd
         
         # send it
-        s.sendall(bytes(pcmd, config.NetworkConfig.ENCODING))
+        s.sendall(bytes(json.dumps(pcmd), config.NetworkConfig.ENCODING))
         
         # print response, if any
         data = s.recv(1024)
         
         if not data:
-            continue
+            return
         
         print("@client: {}".format(str(data)))
 
