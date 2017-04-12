@@ -8,9 +8,14 @@ The Client class exposes mutation high-level operations for readability. It seri
 """
 
 import json
+import socket
+import logging
 
 from . import sock
 from .. import config
+
+if config.NetworkConfig.DEBUG:
+    logging.basicConfig(level=logging.DEBUG)
 
 HOST = config.NetworkConfig.HOST   # The remote host
 PORT = config.NetworkConfig.PORT   # The same port as used by the server
@@ -29,7 +34,40 @@ class Client(object):
         if not all(addrport):
             if addrport is None:
                 addrport = (HOST, PORT)
-        self.conn = None
+                
+        self.encoding = config.NetworkConfig.ENCODING
+        
+        self.sock = sock.Socket
+    
+    def send(self, data):
+        """
+        Serialize and send raw data.
+        
+        @param      dict        data        the data to serialize and send
+        @return     dict        the response, if any
+        """
+        with self.sock(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((HOST, PORT))
+            
+            # serialize cmd
+            msg = json.dumps(data)
+            
+            # send it
+            s.sendall(bytes(msg, self.encoding))
+            
+            # close write end
+            s.shutdown(socket.SHUT_WR)
+            
+            # print response, if any
+            data = s.recv(1024)
+            data = json.loads(str(data, self.encoding))
+            
+            logging.info("@client: {}".format(data))
+            
+            if not data:
+                return
+                
+            return data
     
     def set(self, pin, val):
         """
@@ -44,10 +82,13 @@ class Client(object):
         
         ex.
         >>> gpio.set(0)
-        {"pins": ['0': 0]}
+        {"pins": {'0': 0}}
         """
-        pass
-    
+        pcmd = {"type": 'BSET', "pin": pin, "val": val}
+        res = self.send(pcmd)
+        
+        if res['ok']:
+            return res['data']
     
     def get(self, pin):
         """
@@ -55,10 +96,13 @@ class Client(object):
         
         ex.
         >>> gpio.get(0)
-        {"pins": ['0': 0]}
+        {"pins": {'0': 0}}
         """
-        pass
-    
+        pcmd = {"type": 'SHOW', "pin": pin}
+        res = self.send(pcmd)
+        
+        if res['ok']:
+            return res['data']
     
     def get_many(self, pins, *args):
         """
@@ -66,7 +110,7 @@ class Client(object):
         
         ex.
         >>> gpio.get_many(0)
-        {"pins": ['0': 0]}
+        {"pins": {'0': 0}}
         """
         # NOTE: not hp
         pass
@@ -79,29 +123,8 @@ class Client(object):
         >>> gpio.get_all()
         {"pins": ['0': 0, '1': 1, ... "6": 1]}
         """
-        pass
-    
-# main
-def main():
-    # create the screens
-    with sock.Socket(sock.socket.AF_INET, sock.socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
-            
-        pcmd = {"action": 'SET', "pin": 12, "val": 1}
+        pcmd = {"type": 'LIST'}
+        res = self.send(pcmd)
         
-        # serialize cmd
-        
-        # send it
-        s.sendall(bytes(json.dumps(pcmd), config.NetworkConfig.ENCODING))
-        
-        # print response, if any
-        data = s.recv(1024)
-        
-        if not data:
-            return
-        
-        print("@client: {}".format(str(data)))
-
-if __name__ == '__main__':
-    try: main()
-    except KeyboardInterrupt: exit()
+        if res['ok']:
+            return res['data']
