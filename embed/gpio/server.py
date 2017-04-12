@@ -9,12 +9,13 @@ of the operation on that pin, or default if none.
 @author Joshua Paul A. Chan (@joshpaulchan)
 """
 
-from numbers import Real as REAL_NUMS
 import json
 import logging
 import threading
 import concurrent.futures
 import socket
+from uuid import uuid4 as uuid
+from numbers import Real as REAL_NUMS
 
 from . import sock
 from .. import utils, config
@@ -22,7 +23,7 @@ from .. import utils, config
 ################################### GLOBALS ###################################
 
 # pins to use
-_PINS = filter(lambda v: v, config.GPIOConfig.PINS.values())
+_PINS = list(filter(lambda v: v, config.GPIOConfig.PINS.values()))
 
 # pin locks
 LOCKS = {n : threading.Semaphore(1) for n in _PINS}
@@ -33,6 +34,7 @@ try:                # on-rpi env
     PINS = {n : gpiozero.LED() for n in _PINS}
     
 except ImportError: # non-rpi env
+    logging.basicConfig(level=logging.DEBUG)
     class OutputStub(object):
         
         def __init__(self, pin, val):
@@ -61,7 +63,7 @@ def set_pin(action):
     with LOCKS[pin]:
         PINS[pin].value = val
     
-    return True
+    return {pin : val}
 
 def list_pins(action):
     """
@@ -77,7 +79,7 @@ def list_pins(action):
     for k, pin in PINS.items():
         with LOCKS[k]:
             stats[k] = pin.value
-    
+            
     return stats
 
 def echo(*args):
@@ -109,7 +111,7 @@ class Server(object):
         'LIST'  : list_pins,
     }
 
-    COMMANDS = set(map(lambda s: s.casefold(), HANDLERS.keys()))
+    COMMANDS = set(HANDLERS.keys())
     
     def __init__(self, addr=None, num_workers=None):
         self.addr = addr if addr else config.NetworkConfig.HOST
@@ -133,7 +135,7 @@ class Server(object):
         act_type = action.get('type', None)
         assert act_type in self.COMMANDS
         
-        if act_type == 'BSET':
+        if utils.caseless_compare(act_type, 'BSET'):
             # validator for 'BSET'
             # must have at least pin and val
             assert action.get('pin', None) is not None
@@ -144,12 +146,12 @@ class Server(object):
             
             # pin number must be within range
             assert action['pin'] in _PINS
-        elif act_type == 'LIST':
+        elif utils.caseless_compare(act_type, 'LIST'):
             # validator for 'LIST'
             pass
         return True
     
-    def handle(self, conn):
+    def handle(self, conn, _id):
         """
         Parse, validate and dispatch a message from the connection.
         
@@ -167,26 +169,36 @@ class Server(object):
             
             # parse
             try:
-                msg = json.loads(str(chunks, self.encoding))
-                logging.info("[@server] %s", msg)
+                raw = str(chunks, self.encoding)
+                action = json.loads(raw)
+                logging.info("[@server] %s", action)
             except ValueError:
-                logging.warning("[@server]")
+                logging.warning("[@server] error deserializing action: %s", raw)
                 return
             
-            # validae
-            if not self.valid_action(msg):
-                logging.warning("[@server] Invalid command: %s", msg)
+            # validate
+            if not self.valid_action(action):
+                logging.warning("[@server] Invalid command: '%s'", action['type'])
                 return
             
             # dispatch
-            resp = self.HANDLERS.get(msg["action"], echo)(msg)
+            try:
+                pin_data = self.HANDLERS.get(action["type"], echo)(action)
+                
+                # respond
+                resp = {"ok" : True, "data": {"pins" : pin_data}}
+            except:
+                # respond
+                resp = {"ok" : False, "error": {"message" : "There was an error."}}
+                logging.error("[@server] Error handling command: '%s'.", action['type'])
+                
             print("[@server] responded: {}".format(resp))
-            
-            # respond
             conn.sendall(bytes(json.dumps(resp), self.encoding))
             
-        # cleanup
-        del self.socks[conn.get_ident()]
+            conn.shutdown(socket.SHUT_RDWR)
+            
+            # cleanup
+            del self.socks[_id]
                 
     def listen(self, port=None):
         """
@@ -200,11 +212,14 @@ class Server(object):
             self.sock.bind((self.addr, port))
             self.sock.listen()
             
+            logging.info("[@server] listening at %s:%d", self.addr, port)
+            
             while True:
                 conn, _ = self.sock.accept()
                 if conn:
-                    self.workers.submit(self.handle, conn)
-                    self.socks[conn.get_ident()] = conn
+                    _id = str(uuid()).split('-')[-1]
+                    self.workers.submit(self.handle, conn, _id)
+                    self.socks[_id] = conn
                     
 ##################################### MAIN #####################################
 
