@@ -12,3 +12,6 @@ def assert_to_false(fn):
         except AssertionError:
             return False
     return func
+
+def caseless_compare(str_a, str_b):
+    return str_a.casefold() == str_b.casefold()
