@@ -3,10 +3,12 @@
 @desc   File for containing the program configuration
 """
 
+from collections import OrderedDict
+
 class Config(object):
     """Global Config"""
     
-    pass
+    DEBUG = True
 
 class NetworkConfig(Config):
     """Networking configuration"""
@@ -20,7 +22,7 @@ class NetworkConfig(Config):
 class GPIOConfig(Config):
     """GPIO configuration"""
     
-    PINS = {
+    PINS = OrderedDict({
         "lights/enable"     : 2,
         "lights/red"        : None,
         "lights/green"      : None,
@@ -28,7 +30,7 @@ class GPIOConfig(Config):
         "sensors/enable"    : 3,
         "pump/enable"       : 5,
         "fan/enable"        : 6
-    }
+    })
     
     FRIENDLY_NAMES = {out:name for name, out in PINS.items() if out}
 
