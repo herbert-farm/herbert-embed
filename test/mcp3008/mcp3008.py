@@ -11,7 +11,10 @@ if (len(sys.argv) < 3):
 pin = sys.argv[1]
 channel = sys.argv[2]
 print("Using pin: " + pin)
+<<<<<<< HEAD
 print("Using channel: " + channel)
+=======
+>>>>>>> 79cdc2c4346da21e2eb284ac9d2032601c95d13b
 
 # Set pin up for output
 led = LED(int(pin))
