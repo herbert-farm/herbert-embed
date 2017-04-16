@@ -95,12 +95,11 @@ class Client(object):
         
         ex.
         >>> gpio.set(0)
-        {"pin": {'0': 0}}
+        {'0': 0}
         """
         res = self.send(actions.Types.SET_PIN, {"pin": pin, "val": val})
         
-        if res['ok']:
-            return res['data']
+        return res['ok']
     
     def get_pin(self, pin):
         """
@@ -108,7 +107,7 @@ class Client(object):
         
         ex.
         >>> gpio.get(0)
-        {"pin": {'0': 0}}
+        {'0': 0}
         """
         res = self.send(actions.Types.GET_PIN, {"pin": pin})
         
@@ -121,12 +120,12 @@ class Client(object):
         
         ex.
         >>> gpio.get_pins()
-        {"pins": {'0': 0, '1': 1, ... ,"6": 1}}
+        {'0': 0, '1': 1, ... ,"6": 1}
         """
         res = self.send(actions.Types.LIST_PINS)
         
         if res['ok']:
-            return {"pins": utils.merge_dicts(*res['data'])}
+            return utils.merge_dicts(*res['data'])
     
     def get_channel(self, channel):
         """
@@ -134,12 +133,12 @@ class Client(object):
         
         ex.
         >>> gpio.get_channel(0)
-        {"channel": {'0': 0}}
+        {'0': 0}
         """
         res = self.send(actions.Types.GET_PIN, {"channel": channel})
         
         if res['ok']:
-            return res['data']
+            return res['data'][channel]
     
     def get_channels(self):
         """
@@ -147,9 +146,9 @@ class Client(object):
         
         ex.
         >>> gpio.get_channels()
-        {"channels": {'0': 0, '1': 1, ... "6": 1}}
+        {'0': 0, '1': 1, ... "6": 1}
         """
         res = self.send(actions.Types.LIST_CNLS)
         
         if res['ok']:
-            return {"channels": utils.merge_dicts(*res['data'])}
+            return utils.merge_dicts(*res['data'])

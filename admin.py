@@ -107,26 +107,23 @@ def main():
             
             try:
                 res = client.set_pin(pin, val)
-                print("'{}' (pin #{}) is now: {}".format(PIN_NAMES[pin], pin, val))
+                if res:
+                    print("'{}' (pin #{}) is now: {}".format(PIN_NAMES[pin], pin, val))
             except:
                 print("Error setting pin #{} to {}.".format(pin, val))
         elif utils.caseless_compare(act_type, 'LIST'):
             which = action['which']
             
             if which == 'p':
-                res = client.get_pins()
-                
-                pins = res['pins']
+                pins = client.get_pins()
                 for pin, val in pins.items():
                     name = PIN_NAMES[int(pin)]
                     print("{:20} (pin #{:0>2}): {}".format(name, pin, val))
             elif which == 'c':
-                res = client.get_channels()
-                
-                channels = res['channels']
+                channels = client.get_channels()
                 for channel, val in channels.items():
                     name = CHNL_NAMES[int(channel)]
-                    print("{:20} (pin #{:0>2}): {}".format(name, channel, val))
+                    print("{:20} (channel #{:0>2}): {}".format(name, channel, val))
             else:
                 print("No such listing `{}` available.".format(which))
                 
