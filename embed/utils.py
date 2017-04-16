@@ -1,4 +1,5 @@
-
+"""
+"""
 
 def flatten(l):
     for subl in l:
@@ -14,4 +15,23 @@ def assert_to_false(fn):
     return func
 
 def caseless_compare(str_a, str_b):
+    """
+    Checks if two strings are equivalent, regardless of case
+    
+    @param      str     str_a       the first string to compare
+    @param      str     str_b       the second string to compare
+    @return     bool    True if the strings are equivalent, False o.w.
+    """
     return str_a.casefold() == str_b.casefold()
+
+def merge_dicts(*dicts):
+    """
+    Merges multiple dicts together, with later dicts taking priority.
+    
+    @param      dict        
+    """
+    ctx = {}
+    for di in dicts:
+        ctx.update(di)
+    
+    return ctx
