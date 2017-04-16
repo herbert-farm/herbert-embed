@@ -4,7 +4,11 @@ from embed.gpio import Server
 
 def main():
     """Main boilerplate."""
-    server = Server(addr=config.NetworkConfig.HOST, num_workers=5)
+    server = Server.from_file(
+        fname=config.GPIOConfig.FILENAME,
+        addr=config.NetworkConfig.HOST,
+        num_workers=5
+    )
     server.listen(port=config.NetworkConfig.PORT)
 
 if __name__ == '__main__':
