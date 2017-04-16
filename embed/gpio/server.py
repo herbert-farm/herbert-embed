@@ -153,8 +153,6 @@ def get_channel(chnl):
     chnl_num = int(chnl)
     chnl = CHNLS.get(chnl_num, None)
     
-    print(CHNLS)
-    
     if chnl is None:
         msg = "{} is not a valid channel number".format(chnl_num)
         logging.error(msg)
