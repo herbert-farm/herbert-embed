@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4 as uuid
 from numbers import Real as REAL_NUMS
 
+from . import actions
 from . import sock
 from .. import utils, config
 
@@ -30,19 +31,21 @@ if config.GPIOConfig.DEBUG:
 ################################### GLOBALS ###################################
 
 # pins & channels to use
-_PINS = list(filter(lambda v: v, config.GPIOConfig.PINS.values()))
-_CHNLS = list(filter(lambda v: v, config.GPIOConfig.CHNL_NUMBERS.values()))
+_PINS = list(filter(lambda v: v is not None, config.GPIOConfig.PINS.values()))
+_CHNLS = list(filter(lambda v: v is not None, config.GPIOConfig.CHNL_NUMBERS.values()))
 
 # pin and channel locks
-LOCKS = {n : threading.Semaphore(1) for n in _PINS}
-CHNL_LOCKS = {n : threading.Semaphore(1) for n in _CHNLS}
+PIN_LOX = {n : threading.Semaphore(1) for n in _PINS}
+CHNL_LOX = {n : threading.Semaphore(1) for n in _CHNLS}
 SAVEFILE_LOCK = threading.Semaphore(1)
 
-# Set pins up for output
 try:                # on-rpi env
     import gpiozero
-    PINS = {n : gpiozero.LED() for n in _PINS}
     
+    # set up pins for binary output
+    PINS = {n : gpiozero.LED() for n in _PINS}
+    # instantiate ADC for sensor channels
+    CHNLS = {n : gpiozero.MCP3008(channel=n) for n in _PINS}
 except ImportError: # non-rpi env
     import random
     from . import stub
@@ -54,7 +57,7 @@ except ImportError: # non-rpi env
 
 ############################## HANDLERS/FUNCTIONS ##############################
 
-def set_pin(pin_num, val):
+def set_pin(pin, val):
     """
     Set the value of a pin.
     
@@ -67,8 +70,7 @@ def set_pin(pin_num, val):
     @return     dict    {pin : val} where `pin` is the pin number and `val` is
     the val that the GPIO pin is currently set to
     """
-    logging.info("Setting pin %s to %s...", pin_num, val)
-    
+    pin_num = int(pin)
     pin = PINS.get(pin_num, None)
     
     if pin is None:
@@ -76,7 +78,8 @@ def set_pin(pin_num, val):
         logging.error(msg)
         raise LookupError(msg)
     
-    with LOCKS[pin_num]:
+    logging.info("Setting pin %s to %s...", pin_num, val)
+    with PIN_LOX[pin_num]:
         try:
             PINS[pin_num].value = val
         except Exception as err:
@@ -85,30 +88,32 @@ def set_pin(pin_num, val):
     
     return {pin_num : val}
 
-def get_pin(pin_num):
+def get_pin(pin):
     """
-    Get the value of all the pins.
+    Get the value of a single pin.
     
-    @pre        `action` must be a dict containing a valid pin number
-    @post       fetches the value of the pin specified in the action request
+    @pre        `pin` must be an non-negative integer
+    @pre        `val` must be a 0 or 1
+    @post       fetches the value of the pin specified
     
-    @raises     LookupError when the specified `pin` paramater is invalid
+    @raises     LookupError when the specified `pin_num` paramater is invalid
     
     @see        `doc/ipc.md` for more informaton on the structure of `action`
     
-    @param      int     pin_num     the pin number to read from
+    @param      int     pin     the pin number to read from
     @return     dict    {pin : val} where `pin` is the pin number and `val` is
     the val that the GPIO pin is currently set to
     """
+    pin_num = int(pin)
     pin = PINS.get(pin_num, None)
     
     if pin is None:
-        msg = "{} is not a valid pin number.".format(pin)
+        msg = "{} is not a valid pin number".format(pin_num)
         logging.error(msg)
         raise LookupError(msg)
     
     val = None
-    with LOCKS[pin_num]:
+    with PIN_LOX[pin_num]:
         val = pin.value
             
     return {pin_num : val}
@@ -117,8 +122,8 @@ def list_pins():
     """
     Get the value of all the pins.
     
-    @see        `get_pin()` for the specific
-    @param      
+    @see        `get_pin()` for the specific reading implementation
+    @return     list        list of {pin:val} dicts
     """
     pin_stats = []
     
@@ -131,26 +136,62 @@ def list_pins():
             
     return pin_stats
 
+def get_channel(chnl):
+    """
+    Get the value of a single channel.
+    
+    @post       fetches the value of the channel specified
+    
+    @raises     LookupError when the specified `chnl_num` paramater is invalid
+    
+    @see        `doc/ipc.md` for more informaton on the structure of `action`
+    
+    @param      int     chnl        the channel number to read
+    @return     dict    {chnl : val} where `chnl` is the chnl number and `val`
+    is the val that the sensor channel is currently reading
+    """
+    chnl_num = int(chnl)
+    chnl = CHNLS.get(chnl_num, None)
+    
+    print(CHNLS)
+    
+    if chnl is None:
+        msg = "{} is not a valid channel number".format(chnl_num)
+        logging.error(msg)
+        raise LookupError(msg)
+    
+    val = None
+    with CHNL_LOX[chnl_num]:
+        val = chnl.value
+            
+    return {chnl_num : val}
+
 def list_channels():
     """
     Get the value of all the channels.
     
-    @pre
+    @see        `get_chnl()` for the specific reading implementation
+    @return     list        list of {pin:val} dicts
     """
-    stats = {}
-    for k, pin in PINS.items():
-        with LOCKS[k]:
-            stats[k] = pin.value
+    chnl_stats = []
+    
+    for chnl_num in CHNLS.keys():
+        try:
+            chnl_stats.append(get_channel(chnl_num))
+        except LookupError:
+            msg = "`get_channel()` raised LookupError when there should be none."
+            logging.warning(msg)
             
-    return stats
+    return chnl_stats
 
 def echo(*args, **kwargs):
     """Echoes the given args and kwargs."""
     return {"args": args, "kwargs" : kwargs}
 
 HANDLERS = {
-    "BSET"      : set_pin,
-    "LIST"      : list_pins,
+    actions.Types.SET_PIN       : set_pin,
+    actions.Types.LIST_PINS     : list_pins,
+    actions.Types.LIST_CNLS     : list_channels,
     "default"   : echo
 }
 
@@ -251,11 +292,14 @@ class Server(object):
         
         try:
             with open(fname, 'r') as file:
-                states = json.load(file)
+                data = json.load(file)
+                states = utils.merge_dicts(*data["pins"])
         except OSError:
-            # account for incorrect file
-            logging.warning("Error deserializing GPIO states from `%s`, \
-starting server with zeroed GPIOs", fname)
+            # account for non-existent file
+            logging.warning("Error opening: `%s`, creating file, starting \
+server with zeroed GPIOs", fname)
+            with open(fname, 'x') as file:
+                pass
         except ValueError:
             # account for invalid in file
             logging.warning("Error deserializing GPIO states from `%s`, \
@@ -298,6 +342,9 @@ starting server with zeroed GPIOs", fname)
         
         # create thread pool
         self.workers = ThreadPoolExecutor(max_workers=self.num_workers)
+        
+        # save initial state
+        self.save_state()
     
     def save_state(self):
         """
@@ -310,14 +357,12 @@ starting server with zeroed GPIOs", fname)
         """
         try:
             with SAVEFILE_LOCK:
-                with open(self.fname, 'x+') as file:
-                    json.dump({
-                        "timestamp" : time(),
-                        "pins" : list_pins()
-                    }, file)
-        except OSError:
+                with open(self.fname, 'w') as file:
+                    json.dump({"timestamp" : time(), "pins" : list_pins()}, file)
+        except OSError as err:
             # account for incorrect file
             logging.warning("Error writing GPIO states to file `%s`", self.fname)
+            print(err)
     
     def handle(self, conn, _id):
         """
