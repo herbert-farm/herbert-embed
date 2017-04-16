@@ -2,23 +2,25 @@
 @name   GPIO Client
 @desc   Client for interacting with the GPIO through the GPIO server.
 
-The Client class exposes mutation high-level operations for readability. It serializes the sent commands to the server using JSON.
+The Client class exposes mutation high-level operations for readability. It
+serializes the sent commands to the server using JSON.
 
 @author Joshua Paul A. Chan (@joshpaulchan)
 """
 
 import json
+# TODO: factor out socket, only rely on sock
 import socket
 import logging
 
-from . import sock
-from .. import config
+from . import sock, actions
+from .. import config, utils
 
-if config.NetworkConfig.DEBUG:
-    logging.basicConfig(level=logging.DEBUG)
-
-HOST = config.NetworkConfig.HOST   # The remote host
-PORT = config.NetworkConfig.PORT   # The same port as used by the server
+if config.GPIOConfig.DEBUG:
+    logging.basicConfig(
+        level=config.GPIOConfig.LOG_LEVEL,
+        format='%(asctime)s:%(levelname)s:GPIO/client:%(message)s'
+    )
 
 class Client(object):
     """
@@ -26,50 +28,61 @@ class Client(object):
     @desc   GPIO client class
     """
     
-    def __init__(self, addrport=None):
-        if addrport is None:
-            addrport = (HOST, PORT)
-        
-        assert len(addrport) == 2
-        if not all(addrport):
-            if addrport is None:
-                addrport = (HOST, PORT)
+    host = config.NetworkConfig.HOST            # The remote host
+    port = PORT = config.NetworkConfig.PORT     # The same port as the server
+    
+    def __init__(self, addr=None, port=None):
+        self.host = addr if addr else self.host
+        self.port = port if port else self.port
+        self.addrport = (self.host, self.port)
                 
         self.encoding = config.NetworkConfig.ENCODING
         
         self.sock = sock.Socket
     
-    def send(self, data):
+    def send(self, act_type, params=None):
         """
         Serialize and send raw data.
         
-        @param      dict        data        the data to serialize and send
-        @return     dict        the response, if any
+        @see    `doc/ipc.md` for more explanation of the send mechanics and the data format
+        
+        @param      str     act_type    the type of action
+        @param      dict    params      the specific
+        @return     dict    the response, if any
         """
-        with self.sock(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((HOST, PORT))
-            
-            # serialize cmd
-            msg = json.dumps(data)
+        # serialize cmd
+        if params is None:
+            params = {}
+
+        msg = json.dumps({"type":act_type, "params":params})
+        
+        with self.sock(socket.AF_INET, socket.SOCK_STREAM) as sck:
+            sck.connect(self.addrport)
             
             # send it
-            s.sendall(bytes(msg, self.encoding))
+            sck.sendall(bytes(msg, self.encoding))
+            logging.info("sent: %s", msg)
             
             # close write end
-            s.shutdown(socket.SHUT_WR)
+            sck.shutdown(socket.SHUT_WR)
             
-            # print response, if any
-            data = s.recv(1024)
-            data = json.loads(str(data, self.encoding))
+            # log response, if any
+            data = sck.recv(1024)
             
-            logging.info("@client: {}".format(data))
+            try:
+                data = json.loads(str(data, self.encoding))
+            except ValueError:
+                logging.error("Error parsing the response: `%s`", data)
+                return {"ok" : False}
+            
+            logging.info("received: %s", data)
             
             if not data:
-                return
+                return {"ok" : False}
                 
             return data
     
-    def set(self, pin, val):
+    def set_pin(self, pin, val):
         """
         Set the value of a single pin.
         
@@ -82,49 +95,61 @@ class Client(object):
         
         ex.
         >>> gpio.set(0)
-        {"pins": {'0': 0}}
+        {"pin": {'0': 0}}
         """
-        pcmd = {"type": 'BSET', "pin": pin, "val": val}
-        res = self.send(pcmd)
+        res = self.send(actions.Types.SET_PIN, {"pin": pin, "val": val})
         
         if res['ok']:
             return res['data']
     
-    def get(self, pin):
+    def get_pin(self, pin):
         """
         Get the value of a single pin.
         
         ex.
         >>> gpio.get(0)
-        {"pins": {'0': 0}}
+        {"pin": {'0': 0}}
         """
-        pcmd = {"type": 'SHOW', "pin": pin}
-        res = self.send(pcmd)
+        res = self.send(actions.Types.GET_PIN, {"pin": pin})
         
         if res['ok']:
             return res['data']
     
-    def get_many(self, pins, *args):
-        """
-        Get the value of many pins.
-        
-        ex.
-        >>> gpio.get_many(0)
-        {"pins": {'0': 0}}
-        """
-        # NOTE: not hp
-        pass
-    
-    def get_all(self):
+    def get_pins(self):
         """
         Get the value of all the pins.
         
         ex.
-        >>> gpio.get_all()
-        {"pins": ['0': 0, '1': 1, ... "6": 1]}
+        >>> gpio.get_pins()
+        {"pins": {'0': 0, '1': 1, ... ,"6": 1}}
         """
-        pcmd = {"type": 'LIST'}
-        res = self.send(pcmd)
+        res = self.send(actions.Types.LIST_PINS)
+        
+        if res['ok']:
+            return {"pins": utils.merge_dicts(*res['data'])}
+    
+    def get_channel(self, channel):
+        """
+        Get the value of a single pin.
+        
+        ex.
+        >>> gpio.get_channel(0)
+        {"channel": {'0': 0}}
+        """
+        res = self.send(actions.Types.GET_PIN, {"channel": channel})
         
         if res['ok']:
             return res['data']
+    
+    def get_channels(self):
+        """
+        Get the value of all the pins.
+        
+        ex.
+        >>> gpio.get_channels()
+        {"channels": {'0': 0, '1': 1, ... "6": 1}}
+        """
+        res = self.send(actions.Types.LIST_CNLS)
+        
+        if res['ok']:
+            return {"channels": utils.merge_dicts(*res['data'])}
