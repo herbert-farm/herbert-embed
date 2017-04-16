@@ -42,7 +42,9 @@ class GPIOConfig(Config):
     
     CHNL_NUMBERS = OrderedDict({
         "temp/front"        : 0,
-        "temp/middle"       : 1
+        "temp/middle"       : 1,
+        "moist/m"           : 2,
+        "tank/level"        : 3,
     })
     CHNL_NAMES = {out:name for name, out in CHNL_NUMBERS.items() if out is not None}
     
