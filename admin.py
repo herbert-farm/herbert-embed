@@ -8,8 +8,8 @@
 from embed.gpio import Client
 from embed import config, utils
 
-PINS = config.GPIOConfig.PINS.values()
-CHNLS = config.GPIOConfig.CHNL_NUMBERS.values()
+PINS = list(map(lambda v: v.num, config.GPIOConfig.PINS.values()))
+CHNLS = list(map(lambda v: v.num, config.GPIOConfig.CHNL_NUMBERS.values()))
 PIN_NAMES = config.GPIOConfig.FRIENDLY_NAMES
 CHNL_NAMES = config.GPIOConfig.CHNL_NAMES
 VALID_COMMANDS = set(['SET', 'GET', 'LIST', 'HELP', 'EXIT'])
