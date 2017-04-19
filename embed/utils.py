@@ -1,5 +1,9 @@
 """
+@name   utils.py
+@desc   File containing several common functions
 """
+
+import uuid
 
 def flatten(l):
     for subl in l:
@@ -35,3 +39,11 @@ def merge_dicts(*dicts):
         ctx.update(di)
     
     return ctx
+
+def make_uuid():
+    """
+    Generate a simple four character uuid
+    
+    @return     str     a fairly unique uuid
+    """
+    return str(uuid.uuid4()).split('-')[-1]
