@@ -1,86 +1,37 @@
+"""
+@name   sensory.py
+@desc   Defines a sensor class to use the 
+"""
 
-import threading
-import uuid
+import functools
 
-import time
-import sched
-import random
+from embed.gpio import Client
 
-SCHEDULER = sched.scheduler()
+CLIENT = Client()
 
 class Sensor(object):
-    
-    def __init__(self, s=None, p=None):
-        if s is not None:
-            self._sensor = s
-    
-    # Reads a value from the given sensor
-    # 
-    # 
-    def read(self):
-        return random.random()
-    
-    def __enter__(self):
-        return self
-    
-    def __exit__(self, *args, **kwargs):
-        return None
-    
-    @classmethod
-    def from_channel(cls, channel):
-        # FIXME: create mcp3008 tied to channel
-        # s = MCP3008(channel=int(channel))
-        s = None
-        return Sensor(s=s)
-    
-    @classmethod
-    def from_pin(cls, pin_number):
-        # TODO: create sensor from digital pin
-        p = None
-        return Sensor(p=p)
+    """
+    Sensor class
+    """
+    def __init__(self, channel=None, pin=None):
+        """
+        """
+        self.read_fn = None
+        
+        if channel is not None:
+            self.chnl = channel
+            self.read_fn = functools.partial(CLIENT.get_channel, channel)
+        
+        if pin is not None:
+            self.pin = pin
+            self.read_fn = functools.partial(CLIENT.get_pin, pin)
+        
+        assert self.read_fn is not None
 
-class Controller(threading.Thread):
-    
-    def __init__(self, name, sensors, q, delay=1):
-        threading.Thread.__init__(self)
-        self.thread_id = str(uuid.uuid4()).split('-')[-1]
-        self.name = name
-        self.sensors = sensors
-        self.q = q
-        
-        self.delay = delay
-        
-        self.exit = False
-        self.pause = False
-    
     def read(self):
-        readings = []
-        for sense in self.sensors:
-            
-            with sense as sen:
-                readings.append(sen.read())
+        """
+        Reads a value from the attached gpio device.
         
-        self.q.put({
-            "id"    : self.thread_id,
-            "name"  : self.name,
-            "data"  : readings
-        })
-        # print("{:1f}  {:8}  {:15}  {}".format(time.time(), self.thread_id, self.name, readings))
-        
-        return readings
-    
-    # Reads a value from the given sensor and places it in the data queue.
-    # 
-    # @return   None
-    def run(self):
-        self.event = SCHEDULER.enter(self.delay, 1, self.read)
-        
-        # # # Look for exit flag
-        while not self.exit:
-            if not self.pause:
-                reading = self.read()
-                time.sleep(self.delay)
-    
-    def stop(self):
-        SCHEDULER.cancel(self.event)
-        
+        @return     number      the value from the gpio device
+        """
+        return self.read_fn()

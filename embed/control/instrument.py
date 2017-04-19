@@ -1,78 +1,86 @@
+"""
+@name   instrument.py
+@desc   Defines the Instrument and InstrumentController classes
+"""
 
+import logging
 import threading
-import uuid
+from time import sleep
 
-import time
-import sched
-import random
+from embed.gpio import Client
 
-SCHEDULER = sched.scheduler()
+CLIENT = Client()
 
 class Instrument(object):
+    """
+    Instrument class
+    """
+    def __init__(self, pin=None):
+        """
+        """
+        assert pin is not None
+        
+        self.run_lock = threading.Semaphore()
+        self.pin = pin
+        self.device = CLIENT
+        
+    def turn_on(self):
+        """
+        Turns on the attached gpio device.
+        
+        @return     dict        the 
+        """
+        return self.device.set_pin(self.pin, 1)
     
-    def __init__(self, p=None):
-        pass
+    def turn_off(self):
+        """
+        Turns off the attached gpio device.
+        
+        @return     number      the value from the gpio device
+        """
+        return self.device.set_pin(self.pin, 0)
     
-    # Reads a value from the given sensor
-    # 
-    # 
-    def read(self):
-        return random.random()
-    
-    def __enter__(self):
-        return self
-    
-    def __exit__(self, *args, **kwargs):
-        return None
-    
-    @classmethod
-    def from_pin(cls, pin_number):
-        # TODO: create sensor from digital pin
-        p = None
-        return Instrument(p=p)
+    def turn_on_for(self, interval=1):
+        """
+        Turns on the gpio device, waits for the specified number of seconds,
+        then turns the gpio device off.
+        
+        @return     None
+        """
+        assert interval > 0
+        
+        with self.run_lock:
+            logging.info("Turning on pin %s for %s seconds", self.pin, interval)
+            self.turn_on()
+            sleep(interval)
+            self.turn_off()
 
-class Controller(threading.Thread):
-    
-    def __init__(self, name, sensors, q, delay=1):
-        threading.Thread.__init__(self)
-        self.thread_id = str(uuid.uuid4()).split('-')[-1]
-        self.name = name
-        self.sensors = sensors
-        self.q = q
+class InstrumentController(object):
+    """
+    The
+    """
+
+    def __init__(self, pin, interval=1):
+        """
+        Constructor for the InstrumentController
+        """
+        assert interval > 0
         
-        self.delay = delay
+        self.interval = interval
+        self.running = False
+        self.gpio = Instrument(pin)
         
-        self.exit = False
-        self.pause = False
-    
-    def read(self):
-        readings = []
-        for sense in self.sensors:
-            
-            with sense as sen:
-                readings.append(sen.read())
+    def run(self, interval=None):
+        """
+        Activates the instrument output for the given time interval in a separate thread
         
-        self.q.put({
-            "id"    : self.thread_id,
-            "name"  : self.name,
-            "data"  : readings
-        })
-        # print("{:1f}  {:8}  {:15}  {}".format(time.time(), self.thread_id, self.name, readings))
+        @param      number      interval        The number of seconds to wait
+        """
+        if interval is None:
+            interval = 1
         
-        return readings
-    
-    # Reads a value from the given sensor and places it in the data queue.
-    # 
-    # @return   None
-    def run(self):
-        self.event = SCHEDULER.enter(self.delay, 1, self.read)
-        
-        # # # Look for exit flag
-        while not self.exit:
-            if not self.pause:
-                reading = self.read()
-                time.sleep(self.delay)
-    
-    def stop(self):
-        SCHEDULER.cancel(self.event)
-        
+        worker = threading.Thread(
+            target=self.gpio.turn_on_for,
+            kwargs={'interval':interval}
+        )
+        worker.start()
