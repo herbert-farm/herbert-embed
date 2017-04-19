@@ -99,7 +99,8 @@ class Client(object):
         """
         res = self.send(actions.Types.SET_PIN, {"pin": pin, "val": val})
         
-        return res['ok']
+        if res['ok']:
+            return res['data'].get('pin')
     
     def get_pin(self, pin):
         """
@@ -112,7 +113,7 @@ class Client(object):
         res = self.send(actions.Types.GET_PIN, {"pin": pin})
         
         if res['ok']:
-            return res['data']
+            return res['data'][str(pin)]
     
     def get_pins(self):
         """
@@ -135,10 +136,10 @@ class Client(object):
         >>> gpio.get_channel(0)
         {'0': 0}
         """
-        res = self.send(actions.Types.GET_PIN, {"channel": channel})
+        res = self.send(actions.Types.GET_CHNL, {"channel": channel})
         
         if res['ok']:
-            return res['data'][channel]
+            return res['data'][str(channel)]
     
     def get_channels(self):
         """

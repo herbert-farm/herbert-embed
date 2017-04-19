@@ -5,6 +5,6 @@ class Types(object):
     GET_PIN = "PGET"
     LIST_PINS = "PLIST"
     
-    GET_PIN = "CGET"
+    GET_CHNL = "CGET"
     LIST_CNLS = "CLIST"
     

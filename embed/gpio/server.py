@@ -31,27 +31,47 @@ if config.GPIOConfig.DEBUG:
 ################################### GLOBALS ###################################
 
 # pins & channels to use
-_PINS = list(filter(lambda v: v is not None, config.GPIOConfig.PINS.values()))
-_CHNLS = list(filter(lambda v: v is not None, config.GPIOConfig.CHNL_NUMBERS.values()))
+# _PINS = map(lambda k, v: _PINS.items())
+_PINS = list(
+    filter(lambda v: v.num is not None, config.GPIOConfig.PINS.values())
+)
+_CHNLS = list(
+    filter(lambda v: v.num is not None, config.GPIOConfig.CHNL_NUMBERS.values())
+)
 
 # pin and channel locks
-PIN_LOX = {n : threading.Semaphore(1) for n in _PINS}
-CHNL_LOX = {n : threading.Semaphore(1) for n in _CHNLS}
+PIN_LOX = {n.num : threading.Semaphore(1) for n in _PINS}
+CHNL_LOX = {n.num : threading.Semaphore(1) for n in _CHNLS}
 SAVEFILE_LOCK = threading.Semaphore(1)
 
 try:                # on-rpi env
     import gpiozero
     
     # set up pins for binary output
-    PINS = {n : gpiozero.LED() for n in _PINS}
+    PINS = {n.num : gpiozero.LED(n) for n in _PINS}
     # instantiate ADC for sensor channels
-    CHNLS = {n : gpiozero.MCP3008(channel=n) for n in _PINS}
+    CHNLS = {}
+    for _input in _CHNLS:
+        if _input.type == 'channel':
+            CHNLS[_input.num] = gpiozero.MCP3008(channel=_input.num)
+        elif _input.type == 'pin':
+            CHNLS[_input.num] = gpiozero.Button(_input.num)
+        else:
+            pass
 except ImportError: # non-rpi env
     import random
     from . import stub
 
-    PINS = {n : stub.Stub(n, 0) for n in _PINS}
-    CHNLS = {n : stub.Stub(n, random.random()) for n in _CHNLS}
+    PINS = {n.num : stub.Stub(n, 0) for n in _PINS}
+    print(PINS)
+    CHNLS = {}
+    for _input in _CHNLS:
+        if _input.type == 'channel':
+            CHNLS[_input.num] = stub.Stub(_input.num, random.random())
+        elif _input.type == 'pin':
+            CHNLS[_input.num] = stub.Stub(_input.num, random.random())
+        else:
+            pass
     
 ################################### HANDLERS ###################################
 
@@ -136,7 +156,7 @@ def list_pins():
             
     return pin_stats
 
-def get_channel(chnl):
+def get_channel(channel):
     """
     Get the value of a single channel.
     
@@ -150,7 +170,7 @@ def get_channel(chnl):
     @return     dict    {chnl : val} where `chnl` is the chnl number and `val`
     is the val that the sensor channel is currently reading
     """
-    chnl_num = int(chnl)
+    chnl_num = int(channel)
     chnl = CHNLS.get(chnl_num, None)
     
     if chnl is None:
@@ -188,7 +208,9 @@ def echo(*args, **kwargs):
 
 HANDLERS = {
     actions.Types.SET_PIN       : set_pin,
+    actions.Types.GET_PIN       : get_pin,
     actions.Types.LIST_PINS     : list_pins,
+    actions.Types.GET_CHNL      : get_channel,
     actions.Types.LIST_CNLS     : list_channels,
     "default"   : echo
 }
