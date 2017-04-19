@@ -4,7 +4,7 @@
 """
 
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
 class Config(object):
     """Global Config"""
@@ -24,29 +24,34 @@ class NetworkConfig(Config):
     ENCODING = 'utf-8'
     
     MAX_THREADS = 5
+    
+GPIO = namedtuple('GPIO', ['type', 'num']) 
 
 class GPIOConfig(Config):
     """GPIO configuration"""
     
-    # TODO: change from PINS to PIN_NUMBERS and FRIENDLY_NAMES to PIN_NAME
-    PINS = OrderedDict({
-        "lights/enable"     : 2,
-        "lights/red"        : None,
-        "lights/green"      : None,
-        "lights/blue"       : None,
-        "sensors/enable"    : 3,
-        "pump/enable"       : 5,
-        "fan/enable"        : 6
+    # TODO: CONVERT to pins = { 2 :  GPIO(type="pin", name=2, etc)}
+    
+    PIN_NUMBERS = PINS = OrderedDict({
+        "lights/enable"         : GPIO(type="pin", num=2),
+        "lights/red/enable"     : GPIO(type="pin", num=0),
+        "lights/green/enable"   : GPIO(type="pin", num=1),
+        "lights/blue/enable"    : GPIO(type="pin", num=4),
+        "sensors/enable"        : GPIO(type="pin", num=3),
+        "pump/enable"           : GPIO(type="pin", num=5),
+        "fan/enable"            : GPIO(type="pin", num=6),
+        "heat/enable"           : GPIO(type="pin", num=8)
     })
-    FRIENDLY_NAMES = {out:name for name, out in PINS.items() if out is not None}
+    PIN_NAMES = FRIENDLY_NAMES = {out.num:name for name, out in PINS.items() if out is not None}
     
     CHNL_NUMBERS = OrderedDict({
-        "temp/front"        : 0,
-        "temp/middle"       : 1,
-        "moist/m"           : 2,
-        "tank/level"        : 3,
+        "temp/front"        : GPIO(type="pin", num=0),
+        "temp/middle"       : GPIO(type="pin", num=1),
+        "temp/back"         : GPIO(type="other", num=2),
+        "moist/m"           : GPIO(type="pin", num=2),
+        "tank/level"        : GPIO(type="channel", num=3),
     })
-    CHNL_NAMES = {out:name for name, out in CHNL_NUMBERS.items() if out is not None}
+    CHNL_NAMES = {out.num:name for name, out in CHNL_NUMBERS.items() if out is not None}
     
     FILENAME = 'gpio_states.json'    # filename to load/store state from
 
@@ -54,3 +59,11 @@ class CLI_Config(Config):
     """CLI configuration"""
     
     PS2 = "[gpio] "
+
+class SystemConfig(Config):
+    """Controller Configuration"""
+    
+    S_I_MAP = {
+        "temp/front": "lights/enable",
+        "temp/middle": "lights/enable"
+    }
