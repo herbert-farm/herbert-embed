@@ -1,111 +1,85 @@
 #!usr/bin/env python3
 """
+@name   run
+@desc   Nice
 """
 
+from time import sleep
 from collections import deque
 
-from embed.gpio import Client
-import signal
+import schedule
 
-import sensor
-import db
-import utils
+from embed import config
+from embed.control import Sensor, InstrumentController
+from embed.control import NaiveSystem
 
-# The numbers of sensors in what area
-SENSORS = {
-    'MOIST-M'       : [
-        sensor.Sensor.from_channel(0),
-        sensor.Sensor.from_channel(1)
-    ],
-    'MOIST-F'       : [],
-    'MOIST-L'       : [],
-    'TEMP-M'        : [],
-    'WATERLEVEL'    : [
-        sensor.Sensor.from_pin(28)
-    ]
-}
+# import db
+INPUTS = config.GPIOConfig.CHNL_NUMBERS
+OUTPUTS = config.GPIOConfig.PIN_NUMBERS
 
-DATA_QUEUES = { k : queue.Queue() for k in SENSORS.keys() }
+# maps sensor inputs to relevant instrument outputs
+S_I_MAP = config.SystemConfig.S_I_MAP
 
-INSTRUMENTS = {
-    'FAN'   : [],
-    'MOIST' : [],
-    'LIGHT' : []
-}
+DQ = {k : deque(maxlen=100) for k in INPUTS.keys()}
 
-# which sensor values are modulated by which instrument
-S_I_MAP = {
-    'MOIST-M'   : 'MOIST',
-    'MOIST-F'   : 'MOIST',
-    'MOIST-L'   : 'MOIST',
-    'TEMP-M'    : 'FAN',
-}
+def sleep_for_6_hours():
+    """System sleeps from 12AM-6AM"""
+    sleep()
 
-# Main event loop
-# 
-# def main():
-#     # connect to db
-#     datastore = db.Database()
-#     
-#     # create sensor threads
-#     controllers = {
-#         name : sensor.Controller(name, sensors, DATA_QUEUES[name]) for name, sensors in SENSORS.items()
-#         if len(SENSORS[name]) > 0 
-#     }
-#     
-#     # create instrument threads
-#     instruments = {
-#         name : instrument.Controller(name, sensors, DATA_QUEUES[name]) for name, sensors in SENSORS.items()
-#         if len(SENSORS[name]) > 0 
-#     }
-#     
-#     # set up data listeners
-#     for name, stream in DATA_QUEUES.items():
-#         datastore.listen(stream)
-#         # instruments[name].listen(stream)
-#         
-#     
-#     print('ay2')
-#     # start reading
-#     for ctrl in controllers.values():
-#         ctrl.start()
-# 
-#     # watch queue for > n readings per sensor
-#     # TODO: figure out how to stream queue data in a non-blocking way
-#     
-#         
-#     # wait for all threads to finish reading
-#     signal.pause()
-def main():
+def turn_white_lights_on():
+    """Turns white lights on"""
+    pass
+
+def main_naive():
+    """main boilerplate"""
     
-    t = 0
+    # instantiate inputs
+    sensors = {}
+    for input_name, gpio in INPUTS.items():
+        if gpio.type == 'channel':
+            sensors[input_name] = Sensor(channel=gpio.num)
+        elif gpio.type == 'pin':
+            sensors[input_name] = Sensor(pin=gpio.num)
+    
+    # instantiate outputs
+    instruments = {name: InstrumentController(pin=gpio.num) for name, gpio in OUTPUTS.items()}
+    
+    # instantiate controllers
+    controller = NaiveSystem(io_map=S_I_MAP)
+    
+    # schedule jobs
+    schedule.every().day.at("00:00").do(sleep_for_6_hours)
+    schedule.every().day.at("6:00").do(sleep_for_6_hours)
+    schedule.every().day.at("8:00").do(sleep_for_6_hours)
+    
     while True:
-        nt = time.time()
-        d = nt - t
         
         # capture values from all pins/channels and put into deque
+        inputs = {}
+        for name, sense in sensors.items():
+            inputs[name] = sense.read() 
+        # `inputs` will be dict of of "input/name": num or num[].
         
-        # 
+        print("inputs", inputs)
+        # TODO: save inputs
         
         # activate handlers based on time scale (ms, s, minute, hour, day)
-        if d % 1 == 0:
-            (handle(t) for handle in sec_handlers)
+        schedule.run_pending()
         
-        if d % 60 == 0:
-            (handle(t) for handle in sec_handlers)
+        # predict output for inputs
+        outputs = controller.predict(inputs)
         
-        if d % 60 == 0:
-            (handle(t) for handle in sec_handlers)
-        
-        # feed to controller, get outputs
+        print("outputs", outputs)
         
         # dispatch outputs
-        
-        t = nt
-
+        for inst_name, val in outputs.items():
+            if instruments.get(inst_name, False):
+                instruments[inst_name].run(val)
+            
+        sleep(5)
 
 if __name__ == '__main__':
     try:
-        main()
+        main_naive()
     except KeyboardInterrupt:
         exit()
