@@ -453,7 +453,7 @@ starting server with zeroed GPIOs", fname)
         port = port if port else config.NetworkConfig.PORT
         with self.sock:
             self.sock.bind((self.addr, port))
-            self.sock.listen()
+            self.sock.listen(5)
             
             logging.info("listening at %s:%d", self.addr, port)
             
