@@ -48,28 +48,27 @@ try:                # on-rpi env
     import gpiozero
     
     # set up pins for binary output
-    PINS = {n.num : gpiozero.LED(int(n)) for n in _PINS}
+    PINS = {gpio.num : gpiozero.LED(int(gpio.num)) for gpio in _PINS}
     # instantiate ADC for sensor channels
     CHNLS = {}
-    for _input in _CHNLS:
-        if _input.type == 'channel':
-            CHNLS[_input.num] = gpiozero.MCP3008(channel=_input.num)
-        elif _input.type == 'pin':
-            CHNLS[_input.num] = gpiozero.Button(_input.num)
+    for gpio in _CHNLS:
+        if gpio.type == 'channel':
+            CHNLS[gpio.num] = gpiozero.MCP3008(channel=gpio.num)
+        elif gpio.type == 'pin':
+            CHNLS[gpio.num] = gpiozero.Button(gpio.num)
         else:
             pass
 except ImportError: # non-rpi env
     import random
     from . import stub
 
-    PINS = {n.num : stub.Stub(n, 0) for n in _PINS}
-    print(PINS)
+    PINS = {gpio.num : stub.Stub(gpio.num, 0) for gpio in _PINS}
     CHNLS = {}
-    for _input in _CHNLS:
-        if _input.type == 'channel':
-            CHNLS[_input.num] = stub.Stub(_input.num, random.random())
-        elif _input.type == 'pin':
-            CHNLS[_input.num] = stub.Stub(_input.num, random.random())
+    for gpio in _CHNLS:
+        if gpio.type == 'channel':
+            CHNLS[gpio.num] = stub.Stub(gpio.num, random.random())
+        elif gpio.type == 'pin':
+            CHNLS[gpio.num] = stub.Stub(gpio.num, random.random())
         else:
             pass
     
