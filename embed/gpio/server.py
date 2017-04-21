@@ -307,7 +307,7 @@ class Server(object):
         
         @param      dict    pin_states  
         """
-        states = {n : 0 for n in _PINS}
+        states = {n.num : 0 for n in _PINS}
         
         try:
             with open(fname, 'r') as file:
