@@ -1,4 +1,4 @@
-#!usr/bin/env python3
+#!/usr/bin/env python3
 """
 @name   run
 @desc   Nice
@@ -24,11 +24,50 @@ DQ = {k : deque(maxlen=100) for k in INPUTS.keys()}
 
 def sleep_for_6_hours():
     """System sleeps from 12AM-6AM"""
-    sleep()
+    # turn everything off
+    turn_white_lights_off()
+    turn_other_lights_ff()
+    turn_pump_off()
+    
+    # sleep for 6 hours
+    sleep(60*60*6)
 
 def turn_white_lights_on():
     """Turns white lights on"""
     pass
+
+def turn_white_lights_off():
+    """Turn white lights off"""
+    pass
+
+def turn_other_lights_on():
+    """Turns the other lights on"""
+    pass
+
+def turn_other_lights_off():
+    """Turns the other lights off"""
+    pass
+
+def turn_pump_on():
+    """Turn the pump on"""
+    pass
+
+def turn_pump_off():
+    """Turn pump off"""
+    pass
+
+def at_zero():
+    """At 00:00"""
+    sleep_for_6_hours()
+
+def at_six():
+    """At 06:00"""
+    turn_white_lights_on()
+    
+def at_eight():
+    """At 08:00"""
+    turn_white_lights_off()
+    turn_other_lights_on()
 
 def main_naive():
     """main boilerplate"""
@@ -48,9 +87,9 @@ def main_naive():
     controller = NaiveSystem(io_map=S_I_MAP)
     
     # schedule jobs
-    schedule.every().day.at("00:00").do(sleep_for_6_hours)
-    schedule.every().day.at("6:00").do(sleep_for_6_hours)
-    schedule.every().day.at("8:00").do(sleep_for_6_hours)
+    schedule.every().day.at("00:00").do(at_zero)
+    schedule.every().day.at("6:00").do(at_six)
+    schedule.every().day.at("8:00").do(at_eight)
     
     while True:
         
