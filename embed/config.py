@@ -45,10 +45,10 @@ class GPIOConfig(Config):
     PIN_NAMES = FRIENDLY_NAMES = {out.num:name for name, out in PINS.items() if out is not None}
     
     CHNL_NUMBERS = OrderedDict({
-        "temp/front"        : GPIO(type="pin", num=0),
-        "temp/middle"       : GPIO(type="pin", num=1),
+        "temp/front"        : GPIO(type="channel", num=0),
+        "temp/middle"       : GPIO(type="channel", num=1),
         "temp/back"         : GPIO(type="other", num=2),
-        "moist/m"           : GPIO(type="pin", num=2),
+        "moist/m"           : GPIO(type="channel", num=2),
         "tank/level"        : GPIO(type="channel", num=3),
     })
     CHNL_NAMES = {out.num:name for name, out in CHNL_NUMBERS.items() if out is not None}
