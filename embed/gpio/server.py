@@ -48,7 +48,7 @@ try:                # on-rpi env
     import gpiozero
     
     # set up pins for binary output
-    PINS = {n.num : gpiozero.LED(n) for n in _PINS}
+    PINS = {n.num : gpiozero.LED(int(n)) for n in _PINS}
     # instantiate ADC for sensor channels
     CHNLS = {}
     for _input in _CHNLS:
