@@ -5,18 +5,32 @@
 
 import uuid
 
-def flatten(l):
-    for subl in l:
+def flatten(_list):
+    """
+    Allows iteration over a 2 dimensional list
+    
+    @param      list            l       the 2-dimensional list to flatten
+    @return     generator       generator yielding the flattened values
+    """
+    for subl in _list:
         for i in subl:
             yield i
 
-def assert_to_false(fn):
-    def func(*args, **kwargs):
+def assert_to_false(func):
+    """
+    Decorator that stifles Assertion errors by returning the output if it 
+    succeeds and returing False is an AssertionError is raised
+    
+    @param      function        func        the function to wrap
+    @return     function        the wrapped function
+    """
+    def funct(*args, **kwargs):
+        """Wrapper function"""
         try:
-            return fn(*args, **kwargs)
+            return func(*args, **kwargs)
         except AssertionError:
             return False
-    return func
+    return funct
 
 def caseless_compare(str_a, str_b):
     """
@@ -32,11 +46,12 @@ def merge_dicts(*dicts):
     """
     Merges multiple dicts together, with later dicts taking priority.
     
-    @param      dict        
+    @param      dict[]      dicts       the dicts to merge
+    @return     dict        the merge dict               
     """
     ctx = {}
-    for di in dicts:
-        ctx.update(di)
+    for _dict in dicts:
+        ctx.update(_dict)
     
     return ctx
 
